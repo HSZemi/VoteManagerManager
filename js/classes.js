@@ -57,8 +57,8 @@ class Wahl {
     }
 
     getErgebnisForUrne(urne) {
-        for(let ergebnis of this.ergebnisse){
-            if(ergebnis.c_urne_nr === urne.nummer){
+        for (let ergebnis of this.ergebnisse) {
+            if (ergebnis.c_urne_nr === urne.nummer) {
                 return ergebnis;
             }
         }
@@ -77,7 +77,7 @@ class Wahl {
         for (let liste of this.listen) {
             liste.c_percent = liste.c_gesamtstimmen * 100 / gesamtlistenstimmen;
         }
-        stlgs(this.listen);
+        //stlgs(this.listen);
 
     }
 
@@ -99,153 +99,23 @@ class Wahl {
         throw new Error('Liste not found: ' + name);
     }
 
-    getStimmenuebersicht() {
-        let retval = [];
-        this.listen.sort((a, b) => (a.nummer > b.nummer) ? 1 : ((b.nummer > a.nummer) ? -1 : 0));
-        for (let liste of this.listen) {
-            let head = new ResultListHead(liste.name, liste.c_gesamtstimmen, liste.c_listenstimmen);
-            let listResult = new ListResult(head);
-            liste.kandidaten.sort((a, b) => (a.c_gesamtstimmen > b.c_gesamtstimmen) ? -1 : ((b.c_gesamtstimmen > a.c_gesamtstimmen) ? 1 : ((a.nummer > b.nummer) ? 1 : ((b.nummer > a.nummer) ? -1 : 0))));
-            let nr = 1;
-            for (let kandidat of liste.kandidaten) {
-                let resultListRow = new ResultListRow(nr++, kandidat.nummer, kandidat.name, kandidat.c_gesamtstimmen);
-                listResult.addRow(resultListRow);
+    hasErgebnis(urne) {
+        for (let ergebnis of this.ergebnisse) {
+            if (ergebnis.urne === urne) {
+                return true;
             }
-            retval.push(listResult);
         }
-        return retval;
+        return false;
     }
 
-    getHaupttabelle() {
-        let retval = [];
-        this.listen.sort((a, b) => (a.nummer > b.nummer) ? 1 : ((b.nummer > a.nummer) ? -1 : 0));
-        for (let liste of this.listen) {
-            retval.push(new ListTableEntry(liste.nummer, liste.name, liste.c_gesamtstimmen, '?', liste.c_percent, '?', liste.c_seats, '?'));
-        }
-        return retval;
-    }
-
-    getUrnentabelle() {
-        let retval = [];
-        this.ergebnisse.sort((a, b) => (this.getUrneNr(a.urne) > this.getUrneNr(b.urne)) ? 1 : ((this.getUrneNr(b.urne) > this.getUrneNr(a.urne)) ? -1 : 0));
-        for(let ergebnis of this.ergebnisse){
-            let listenstimmen = [];
-            ergebnis.listenergebnisse.sort((a, b) => (this.getListeNr(a.liste) > this.getListeNr(b.liste)) ? 1 : ((this.getListeNr(b.liste) > this.getListeNr(a.liste)) ? -1 : 0));
-            for(let listenergebnis of ergebnis.listenergebnisse){
-                listenstimmen.push(listenergebnis.gesamtstimmen);
+    merge(other) {
+        for (let ergebnis of other.ergebnisse) {
+            if (this.hasErgebnis(ergebnis.urne)) {
+                alert('Cannot merge Urne: ' + ergebnis.urne + ' already exists. Skipping this one.');
+            } else {
+                this.ergebnisse.push(ergebnis);
             }
-            let urneTableEntry = new UrneTableEntry(this.getUrneNr(ergebnis.urne), ergebnis.urne, ergebnis.stimmenGesamt, ergebnis.stimmenUngueltig, ergebnis.stimmenGueltig, ergebnis.stimmenEnthaltung, listenstimmen);
-            retval.push(urneTableEntry);
         }
-        return retval;
-    }
-}
-
-class UrneTableEntry {
-    constructor(nr, urne, gesamt, ungueltig, gueltig, enthaltungen, lists) {
-        this.nr = nr;
-        this.urne = urne;
-        this.gesamt = gesamt;
-        this.ungueltig = ungueltig;
-        this.gueltig = gueltig;
-        this.enthaltungen = enthaltungen;
-        this.lists = lists;
-    }
-
-    toString() {
-        let retval = '';
-        retval += this.nr + '\t';
-        retval += this.urne + '\t';
-        retval += this.gesamt + '\t';
-        retval += this.ungueltig + '\t';
-        retval += this.gueltig + '\t';
-        retval += this.enthaltungen;
-        for (let list of this.lists) {
-            retval += '\t' + list;
-        }
-        return retval + '\n';
-    }
-}
-
-class ListTableEntry {
-    constructor(nr, name, votes, lastvotes, percent, lastpercent, seats, lastseats) {
-        this.nr = nr;
-        this.name = name;
-        this.votes = votes;
-        this.lastvotes = lastvotes;
-        this.percent = percent;
-        this.lastpercent = lastpercent;
-        this.seats = seats;
-        this.lastseats = lastseats;
-    }
-
-    toString() {
-        let retval = '';
-        retval += this.nr + '\t';
-        retval += this.name + '\t';
-        retval += this.votes + '\t';
-        retval += '(' + this.lastvotes + ')' + '\t';
-        retval += this.percent.toFixed(2) + ' %\t';
-        retval += '(' + this.lastpercent + ' %)' + '\t';
-        retval += this.seats + '\t';
-        retval += '(' + this.lastseats + ')' + '\r\n';
-        return retval;
-    }
-}
-
-class ListResult {
-    constructor(head) {
-        this.head = head;
-        this.rows = [];
-    }
-
-    addRow(row) {
-        this.rows.push(row);
-    }
-
-    toString() {
-        let retval = '';
-        retval += this.head.toString();
-        retval += '\r\n';
-        for (let row of this.rows) {
-            retval += row.toString();
-        }
-        retval += '\r\n\r\n';
-        return retval;
-    }
-}
-
-class ResultListHead {
-    constructor(name, gesamtstimmen, listenstimmen) {
-        this.name = name;
-        this.gesamtstimmen = gesamtstimmen;
-        this.listenstimmen = listenstimmen;
-    }
-
-    toString() {
-        let retval = '';
-        retval += this.name + '\r\n';
-        retval += 'Gesamtstimmen: ' + this.gesamtstimmen + '\r\n';
-        retval += 'Listenstimmen: ' + this.listenstimmen + '\r\n';
-        return retval;
-    }
-}
-
-class ResultListRow {
-    constructor(nr, listennr, name, stimmen) {
-        this.nr = nr;
-        this.listennr = listennr;
-        this.name = name;
-        this.stimmen = stimmen;
-    }
-
-    toString() {
-        let retval = '';
-        retval += this.nr + '\t';
-        // retval += this.listennr + '\t';
-        retval += this.name + '\t';
-        retval += this.stimmen + '\r\n';
-        return retval;
     }
 }
 
@@ -340,7 +210,7 @@ class Ergebnis {
         return ergebnis;
     }
 
-    sortListenergebnisse(wahl){
+    sortListenergebnisse(wahl) {
         this.listenergebnisse.sort((a, b) => (wahl.getListe(a.liste).nummer > wahl.getListe(b.liste).nummer) ? 1 : ((wahl.getListe(b.liste).nummer > wahl.getListe(a.liste).nummer) ? -1 : 0));
     }
 
@@ -394,8 +264,8 @@ class Listenergebnis {
         return sum;
     }
 
-    sortKandidatenergebnisse(wahl){
-        this.kandidatenergebnisse.sort((a, b) => (wahl.getKandidat(a.kandidat, this.liste).nummer >wahl.getKandidat(b.kandidat, this.liste).nummer) ? 1 : ((wahl.getKandidat(b.kandidat, this.liste).nummer > wahl.getKandidat(a.kandidat, this.liste).nummer) ? -1 : 0));
+    sortKandidatenergebnisse(wahl) {
+        this.kandidatenergebnisse.sort((a, b) => (wahl.getKandidat(a.kandidat, this.liste).nummer > wahl.getKandidat(b.kandidat, this.liste).nummer) ? 1 : ((wahl.getKandidat(b.kandidat, this.liste).nummer > wahl.getKandidat(a.kandidat, this.liste).nummer) ? -1 : 0));
     }
 
 }

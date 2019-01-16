@@ -29,20 +29,19 @@
 <body>
 
 <div class="container-fluid">
-    <h1>VoteManagerManager</h1>
+    <h1>VoteManagerManager
+        <button class="btn btn-warning mb-2" id="update">Update</button>
+    </h1>
 
     <div class="row">
-        <button class="btn btn-warning mb-2" id="update">Update</button>
-        <div class="form-group mx-sm-3 mb-2">
-            <label for="inputYellowHostname" class="sr-only">Hostname</label>
-            <input type="text" class="form-control" id="inputYellowHostname" placeholder="localhost" value="localhost">
+        <div class="col-6">
+            <label for="yellowUrls">Yellow urls</label>
+            <textarea id="yellowUrls">http://localhost:4567/status</textarea>
         </div>
-        <button class="btn btn-primary mb-2" id="btnInputYellowHostname">Add Yellow Hostname</button>
-        <div class="form-group mx-sm-3 mb-2">
-            <label for="inputPinkHostname" class="sr-only">Hostname</label>
-            <input type="text" class="form-control" id="inputPinkHostname" placeholder="localhost" value="localhost">
+        <div class="col-6">
+            <label for="pinkUrls">Pink urls</label>
+            <textarea id="pinkUrls">http://192.168.1.12:4567/status</textarea>
         </div>
-        <button class="btn btn-primary mb-2" id="btnInputPinkHostname">Add Pink Hostname</button>
     </div>
     <div class="row">
         <div class="col-12" id="ergebnisse">
@@ -53,6 +52,22 @@
 <script src="js/jquery-3.3.1.min.js"></script>
 <script src="js/classes.js"></script>
 <script type="text/javascript">
+
+    $.all = function (promises) {
+        if (!Array.isArray(promises)) {
+            throw new Error("$.all() must be passed an array of promises");
+        }
+        return $.when.apply($, promises).then(function () {
+            // if single argument was expanded into multiple arguments, then put it back into an array
+            // for consistency
+            if (promises.length === 1 && arguments.length > 1) {
+                // put arguments into an array
+                return [Array.prototype.slice.call(arguments, 0)];
+            } else {
+                return Array.prototype.slice.call(arguments, 0);
+            }
+        })
+    };
 
     function updateStatus(yellowWahl, pinkWahl) {
         $('#ergebnisse').empty();
@@ -69,10 +84,12 @@
                 '</div>' +
                 '</div>');
         }
+        $('.card-header').click(function () {
+            $(this).parent().find('.card-body').toggle();
+        })
     }
 
     function cardErgebnis(urne, ergebnis, other, wahl) {
-        console.log('cardErgebnis');
         let color = 'secondary';
         let cardBody = '';
         if (ergebnis !== null && other === null) {
@@ -100,7 +117,6 @@
     }
 
     function compareErgebnis(ergebnis, other, wahl) {
-        console.log('compareErgebnis');
         let result = {colour: 'success', complaints: []};
         if (ergebnis.stimmenGesamt !== other.stimmenGesamt) {
             result.complaints.push("stimmenGesamt: " + ergebnis.stimmenGesamt);
@@ -118,7 +134,6 @@
 
         ergebnis.sortListenergebnisse(wahl);
         for (let listenergebnis of ergebnis.listenergebnisse) {
-            console.log(listenergebnis);
             listenergebnis.sortKandidatenergebnisse(wahl);
         }
 
@@ -140,46 +155,78 @@
     }
 
     function compareListenergebnis(listenergebnis, other, result, wahl) {
-        console.log('compareListenergebnis');
         if (listenergebnis.gesamtstimmen !== other.gesamtstimmen) {
-            result.complaints.push(listenergebnis.kuerzel + ' : Gesamtstimmen : ' + listenergebnis.gesamtstimmen);
+            result.complaints.push(listenergebnis.liste + ' : Gesamtstimmen : ' + listenergebnis.gesamtstimmen);
         }
         if (listenergebnis.listenstimmen !== other.listenstimmen) {
-            result.complaints.push(listenergebnis.kuerzel + ' : Listenstimmen : ' + listenergebnis.listenstimmen);
+            result.complaints.push(listenergebnis.liste + ' : Listenstimmen : ' + listenergebnis.listenstimmen);
         }
         for (let i = 0; i < listenergebnis.kandidatenergebnisse.length; i++) {
             let kandidat = listenergebnis.kandidatenergebnisse[i];
             let otherKandidat = other.kandidatenergebnisse[i];
             if (kandidat.stimmen !== otherKandidat.stimmen) {
                 let realKandidat = wahl.getKandidat(kandidat.kandidat, listenergebnis.liste);
-                result.complaints.push(listenergebnis.liste + ' : ' + realKandidat.nummer + ' : ' + kandidat.kandidat + ' : ' + kandidat.stimmen);
+                result.complaints.push(listenergebnis.liste + ' : ' + realKandidat.nummer + ' - ' + kandidat.kandidat + ' : ' + kandidat.stimmen);
             }
         }
     }
 
-    $('#update').click(function () {
-        $.when(
-            $.get('/yellowWahl'),
-            $.get('/pinkWahl')
-        ).then(function (yellowData, pinkData) {
-            console.log(yellowData);
-            console.log(pinkData);
-            let yellowWahl = Wahl.fromXml(yellowData[0]);
-            let pinkWahl = Wahl.fromXml(pinkData[0]);
-            updateStatus(yellowWahl, pinkWahl);
+    function mergeWahlen(wahlen) {
+        console.log('Merging wahlen: ', JSON.parse(JSON.stringify(wahlen)));
+        if (wahlen.length < 1) {
+            return null;
+        }
+        let wahl = wahlen[0];
+        for (let i = 1; i < wahlen.length; i++) {
+            wahl.merge(wahlen[i]);
+        }
+        console.log('Merged Wahl: ', wahl);
+        return wahl;
+    }
+
+    $(function () {
+        $('#test').click(function () {
+            console.log("LUL");
+            $.get('http://localhost:4567/status', function (data) {
+                console.log(data);
+            });
+        });
+
+        $('#update').click(function () {
+            let yellowUrls = getUrls('#yellowUrls');
+            let pinkUrls = getUrls('#pinkUrls');
+            let urls = yellowUrls.concat(pinkUrls);
+            let promises = urls.map(function (url) {
+                return $.get(url);
+            });
+
+            $.all(promises).then(function (results) {
+                let yellowWahlen = [];
+                let pinkWahlen = [];
+                for (let i = 0; i < yellowUrls.length; i++) {
+                    yellowWahlen.push(Wahl.fromXml(results[i][0]));
+                }
+                console.log(yellowWahlen);
+                for (let i = yellowUrls.length; i < yellowUrls.length + pinkUrls.length; i++) {
+                    pinkWahlen.push(Wahl.fromXml(results[i][0]));
+                }
+                console.log(pinkWahlen);
+                let yellowWahl = mergeWahlen(yellowWahlen);
+                console.log(yellowWahl);
+                let pinkWahl = mergeWahlen(pinkWahlen);
+                console.log(pinkWahl);
+                updateStatus(yellowWahl, pinkWahl);
+            });
         });
     });
-    ;
-    $('#btnInputPinkHostname').click(function () {
-        $.post('/addPinkHost', $('#inputPinkHostname').val(), function (data) {
-            console.log(data);
-        });
-    });
-    $('#btnInputYellowHostname').click(function () {
-        $.post('/addYellowHost', $('#inputYellowHostname').val(), function (data) {
-            console.log(data);
-        });
-    });
+
+    function getUrls(id) {
+        let items = $(id).val().split('\n');
+        for (let i = 0; i < items.length; i++) {
+            items[i] = items[i].trim();
+        }
+        return items;
+    }
 </script>
 </body>
 </html>
