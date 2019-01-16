@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>VoteManagerManager</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container-fluid {
+            max-height: 100%;
+        }
+
+        #right iframe {
+            width: 100%;
+            height: 100%;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <h1>VoteManagerManager</h1>
+
+    <div class="row">
+        <button class="btn btn-warning mb-2" id="update">Update</button>
+        <div class="form-group mx-sm-3 mb-2">
+            <label for="inputYellowHostname" class="sr-only">Hostname</label>
+            <input type="text" class="form-control" id="inputYellowHostname" placeholder="localhost" value="localhost">
+        </div>
+        <button class="btn btn-primary mb-2" id="btnInputYellowHostname">Add Yellow Hostname</button>
+        <div class="form-group mx-sm-3 mb-2">
+            <label for="inputPinkHostname" class="sr-only">Hostname</label>
+            <input type="text" class="form-control" id="inputPinkHostname" placeholder="localhost" value="localhost">
+        </div>
+        <button class="btn btn-primary mb-2" id="btnInputPinkHostname">Add Pink Hostname</button>
+    </div>
+    <div class="row">
+        <div class="col-12" id="ergebnisse">
+        </div>
+    </div>
+</div>
+
+<script src="js/jquery-3.3.1.min.js"></script>
+<script src="js/classes.js"></script>
+<script type="text/javascript">
+
+    function updateStatus(yellowWahl, pinkWahl) {
+        $('#ergebnisse').empty();
+        for (let urne of yellowWahl.urnen) {
+            let yellowErgebnis = yellowWahl.getErgebnisForUrne(urne);
+            let pinkErgebnis = pinkWahl.getErgebnisForUrne(urne);
+
+            $('#ergebnisse').append('<div class="row">' +
+                '<div class="col-6">' +
+                cardErgebnis(urne, yellowErgebnis, pinkErgebnis, yellowWahl) +
+                '</div>' +
+                '<div class="col-6">' +
+                cardErgebnis(urne, pinkErgebnis, yellowErgebnis, pinkWahl) +
+                '</div>' +
+                '</div>');
+        }
+    }
+
+    function cardErgebnis(urne, ergebnis, other, wahl) {
+        console.log('cardErgebnis');
+        let color = 'secondary';
+        let cardBody = '';
+        if (ergebnis !== null && other === null) {
+            color = 'primary';
+        }
+        if (ergebnis !== null && other !== null) {
+            let compareResult = compareErgebnis(ergebnis, other, wahl);
+            color = compareResult.colour;
+            cardBody = getCardBody(compareResult);
+        }
+        return '<div class="card text-white bg-' + color + ' mb-3">\n' +
+            '  <div class="card-header">' + urne.name + '</div>\n' +
+            cardBody +
+            '</div>';
+    }
+
+    function getCardBody(compareResult) {
+        if (compareResult.complaints.length === 0) {
+            return '';
+        } else {
+            return ' <div class="card-body">\n' +
+                '    <pre>' + compareResult.complaints.join('\n') + '</pre>\n' +
+                '  </div>';
+        }
+    }
+
+    function compareErgebnis(ergebnis, other, wahl) {
+        console.log('compareErgebnis');
+        let result = {colour: 'success', complaints: []};
+        if (ergebnis.stimmenGesamt !== other.stimmenGesamt) {
+            result.complaints.push("stimmenGesamt: " + ergebnis.stimmenGesamt);
+        }
+        if (ergebnis.stimmenGueltig !== other.stimmenGueltig) {
+            result.complaints.push("stimmenGueltig: " + ergebnis.stimmenGueltig);
+        }
+        if (ergebnis.stimmenUngueltig !== other.stimmenUngueltig) {
+            result.complaints.push("stimmenUngueltig: " + ergebnis.stimmenUngueltig);
+        }
+        if (ergebnis.stimmenEnthaltung !== other.stimmenEnthaltung) {
+            result.complaints.push("StimmenEnthaltung: " + ergebnis.stimmenEnthaltung);
+        }
+
+
+        ergebnis.sortListenergebnisse(wahl);
+        for (let listenergebnis of ergebnis.listenergebnisse) {
+            console.log(listenergebnis);
+            listenergebnis.sortKandidatenergebnisse(wahl);
+        }
+
+        other.sortListenergebnisse(wahl);
+        for (let listenergebnis of other.listenergebnisse) {
+            listenergebnis.sortKandidatenergebnisse(wahl);
+        }
+
+
+        for (let i = 0; i < ergebnis.listenergebnisse.length; i++) {
+            compareListenergebnis(ergebnis.listenergebnisse[i], other.listenergebnisse[i], result, wahl);
+        }
+
+        if (result.complaints.length !== 0) {
+            result.colour = 'warning';
+        }
+
+        return result;
+    }
+
+    function compareListenergebnis(listenergebnis, other, result, wahl) {
+        console.log('compareListenergebnis');
+        if (listenergebnis.gesamtstimmen !== other.gesamtstimmen) {
+            result.complaints.push(listenergebnis.kuerzel + ' : Gesamtstimmen : ' + listenergebnis.gesamtstimmen);
+        }
+        if (listenergebnis.listenstimmen !== other.listenstimmen) {
+            result.complaints.push(listenergebnis.kuerzel + ' : Listenstimmen : ' + listenergebnis.listenstimmen);
+        }
+        for (let i = 0; i < listenergebnis.kandidatenergebnisse.length; i++) {
+            let kandidat = listenergebnis.kandidatenergebnisse[i];
+            let otherKandidat = other.kandidatenergebnisse[i];
+            if (kandidat.stimmen !== otherKandidat.stimmen) {
+                let realKandidat = wahl.getKandidat(kandidat.kandidat, listenergebnis.liste);
+                result.complaints.push(listenergebnis.liste + ' : ' + realKandidat.nummer + ' : ' + kandidat.kandidat + ' : ' + kandidat.stimmen);
+            }
+        }
+    }
+
+    $('#update').click(function () {
+        $.when(
+            $.get('/yellowWahl'),
+            $.get('/pinkWahl')
+        ).then(function (yellowData, pinkData) {
+            console.log(yellowData);
+            console.log(pinkData);
+            let yellowWahl = Wahl.fromXml(yellowData[0]);
+            let pinkWahl = Wahl.fromXml(pinkData[0]);
+            updateStatus(yellowWahl, pinkWahl);
+        });
+    });
+    ;
+    $('#btnInputPinkHostname').click(function () {
+        $.post('/addPinkHost', $('#inputPinkHostname').val(), function (data) {
+            console.log(data);
+        });
+    });
+    $('#btnInputYellowHostname').click(function () {
+        $.post('/addYellowHost', $('#inputYellowHostname').val(), function (data) {
+            console.log(data);
+        });
+    });
+</script>
+</body>
+</html>
