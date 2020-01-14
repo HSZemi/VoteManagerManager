@@ -22,7 +22,6 @@
 
         textarea {
             width: 100%;
-            height: 100%;
         }
     </style>
 </head>
@@ -44,8 +43,16 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-12" id="ergebnisse">
+        <div class="col-6">
+            <div class="col-12 pb-3 pt-3" id="ergebnisseYellow"></div>
         </div>
+        <div class="col-6">
+            <div class="col-12 pb-3 pt-3" id="ergebnissePink"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-6" id="issuesYellow"></div>
+        <div class="col-6" id="issuesPink"></div>
     </div>
 </div>
 
@@ -70,23 +77,31 @@
     };
 
     function updateStatus(yellowWahl, pinkWahl) {
-        $('#ergebnisse').empty();
+        $('#ergebnisseYellow').empty();
+        $('#ergebnissePink').empty();
+        $('#issuesYellow').empty();
+        $('#issuesPink').empty();
         for (let urne of yellowWahl.urnen) {
             let yellowErgebnis = yellowWahl.getErgebnisForUrne(urne);
             let pinkErgebnis = pinkWahl.getErgebnisForUrne(urne);
 
-            $('#ergebnisse').append('<div class="row">' +
-                '<div class="col-6">' +
-                cardErgebnis(urne, yellowErgebnis, pinkErgebnis, yellowWahl) +
-                '</div>' +
-                '<div class="col-6">' +
-                cardErgebnis(urne, pinkErgebnis, yellowErgebnis, pinkWahl) +
-                '</div>' +
-                '</div>');
+            const comparisonResult = compareErgebnis(yellowErgebnis, pinkErgebnis, yellowWahl);
+            $('#ergebnisseYellow').append(`<span class='badge badge-${comparisonResult.colour}'>${urne.nummer}</span>`);
+            $('#ergebnissePink').append(`<span class='badge badge-${comparisonResult.colour}'>${urne.nummer}</span>`);
+
+            if (comparisonResult.complaints.length > 0) {
+                $('#issuesYellow').append('<div class="col-12">' +
+                    cardErgebnis(urne, yellowErgebnis, pinkErgebnis, yellowWahl) +
+                    '</div>');
+                $('#issuesPink').append('<div class="col-12">' +
+                    cardErgebnis(urne, pinkErgebnis, yellowErgebnis, pinkWahl) +
+                    '</div>');
+            }
+
         }
         $('.card-header').click(function () {
             $(this).parent().find('.card-body').toggle();
-        })
+        });
     }
 
     function cardErgebnis(urne, ergebnis, other, wahl) {
@@ -101,7 +116,7 @@
             cardBody = getCardBody(compareResult);
         }
         return '<div class="card text-white bg-' + color + ' mb-3">\n' +
-            '  <div class="card-header">' + urne.name + '</div>\n' +
+            '  <div class="card-header"><span class="badge badge-dark">' + urne.nummer + '</span> ' + urne.name + '</div>\n' +
             cardBody +
             '</div>';
     }
@@ -118,6 +133,10 @@
 
     function compareErgebnis(ergebnis, other, wahl) {
         let result = {colour: 'success', complaints: []};
+        if(ergebnis === null || other === null){
+            result.colour = 'secondary';
+            return result;
+        }
         if (ergebnis.stimmenGesamt !== other.stimmenGesamt) {
             result.complaints.push("stimmenGesamt: " + ergebnis.stimmenGesamt);
         }
