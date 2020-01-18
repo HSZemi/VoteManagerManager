@@ -86,8 +86,8 @@
             let pinkErgebnis = pinkWahl.getErgebnisForUrne(urne);
 
             const comparisonResult = compareErgebnis(yellowErgebnis, pinkErgebnis, yellowWahl);
-            $('#ergebnisseYellow').append(`<span class='badge badge-${comparisonResult.colour}'>${urne.nummer}</span>`);
-            $('#ergebnissePink').append(`<span class='badge badge-${comparisonResult.colour}'>${urne.nummer}</span>`);
+            $('#ergebnisseYellow').append(`<span class='badge badge-${comparisonResult.colour}'>${urne.nummer}${comparisonResult.indicator}</span> `);
+            $('#ergebnissePink').append(`<span class='badge badge-${comparisonResult.colour}'>${urne.nummer}${comparisonResult.indicator}</span> `);
 
             if (comparisonResult.complaints.length > 0) {
                 $('#issuesYellow').append('<div class="col-12">' +
@@ -115,7 +115,7 @@
             color = compareResult.colour;
             cardBody = getCardBody(compareResult);
         }
-        return '<div class="card text-white bg-' + color + ' mb-3">\n' +
+        return '<div class="card bg-' + color + ' mb-3">\n' +
             '  <div class="card-header"><span class="badge badge-dark">' + urne.nummer + '</span> ' + urne.name + '</div>\n' +
             cardBody +
             '</div>';
@@ -132,9 +132,10 @@
     }
 
     function compareErgebnis(ergebnis, other, wahl) {
-        let result = {colour: 'success', complaints: []};
+        let result = {colour: 'success', complaints: [], indicator: ' ✓'};
         if(ergebnis === null || other === null){
             result.colour = 'secondary';
+            result.indicator = '';
             return result;
         }
         if (ergebnis.stimmenGesamt !== other.stimmenGesamt) {
@@ -168,6 +169,7 @@
 
         if (result.complaints.length !== 0) {
             result.colour = 'warning';
+            result.indicator = ' ⨯'
         }
 
         return result;
